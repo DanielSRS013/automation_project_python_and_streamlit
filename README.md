@@ -21,7 +21,7 @@ Streamlit Data Automation is a web application built with **Python and Streamlit
 
 ## Use Case
 
-This project was designed to replace manual and repetitive data processing tasks, reducing errors and improving productivity. It is suitable for operational teams, analysts, and anyone who needs fast and reliable data preparation without coding.
+This project was designed to replace manual and repetitive data processing tasks, reducing errors and improving productivity. It is suitable for operational audit team, analysts, fast and reliable data preparation without coding.
 
 ## Project Goals
 
