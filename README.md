@@ -6,7 +6,7 @@ Streamlit Data Automation is a web application built with **Python and Streamlit
 
 ## Key Features
 
-* Upload standardized datasets (CSV / Excel)
+* Upload standardized datasets (Excel)
 * Automatic data cleaning and column selection
 * Business rules and data validation
 * Handling missing or inconsistent values
