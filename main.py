@@ -1,10 +1,251 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+import datetime as dt
+from io import BytesIO
 
-st.write('Hello World')
 
-base_path = Path("data_bases/transit_data.XLS")
-df = pd.read_excel(base_path)
 
-st.write(df)
+st.set_page_config(
+     page_title='AuditFlow',
+     page_icon=':mag_right:',
+     layout='wide'
+)
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600;700&display=swap');
+
+html, body, [class*="css"]  {
+    font-family: 'Source Code Pro', monospace;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🔍 AuditFlow – Transit & Delivery")
+st.caption("Automated audit for delivery and transit operations")
+
+
+
+
+
+# Dictionary that maps each branch to its supervisor
+supervisor_data = {
+                    'LNY BARRA': 'Julyana',
+                    'LNY BH': 'CLÁUDIA',
+                    'LNY BRASILIA': 'CLÁUDIA',
+                    'LNY BUZIOS': 'Julyana',
+                    'LNY CAMPINAS': 'CLÁUDIA',
+                    'LNY CURITIBA': 'CLÁUDIA',
+                    'LNY FASHION MALL': 'Julyana',
+                    'LNY IPANEMA': 'Julyana',
+                    'LNY GARCIA': 'Julyana',
+                    'LNY GAVEA': 'Julyana',
+                    'LNY GOIANIA': 'CLÁUDIA',
+                    'LNY HIGIENOPOLIS': 'CLÁUDIA',
+                    'LNY JARDINS': 'CLÁUDIA',
+                    'LNY NITEROI': 'Julyana',
+                    'LNY LEBLON': 'Julyana',
+                    'LNY OFF CATARINA': 'CLÁUDIA',
+                    'LNY OFF LEBLON': 'Julyana',
+                    'LNY PORTO ALEGRE': 'CLÁUDIA',
+                    'LNY RECIFE': 'Julyana',
+                    'LNY RIO SUL': 'Julyana',
+                    'LNY SALVADOR': 'Julyana',
+                    'LNY SALVADOR SHOPPING': 'Julyana',
+                    'LNY SAVASSI': 'CLÁUDIA',
+                    'LNY LEBLON': 'Julyana',
+                    'LNY TRANCOSO': 'Julyana',
+                    'LNY VILLAGE MALL': 'Julyana',
+                    'LNY VITORIA': 'CLÁUDIA',
+                    'LNY LOJA INTERNA': 'HERTA',
+                    'LNY CONSERTO LOJA': 'ADRIANO/ANDRESSA',
+                    'CONSERTO LOJAS': 'ADRIANO/ANDRESSA'}
+# Dictionary that maps each branch to its state
+state_map = {
+    'LNY BARRA': 'RJ',
+    'LNY BUZIOS': 'RJ',
+    'LNY FASHION MALL': 'RJ',
+    'LNY IPANEMA': 'RJ',
+    'LNY GARCIA': 'RJ',
+    'LNY GAVEA': 'RJ',
+    'LNY NITEROI': 'RJ',
+    'LNY LEBLON': 'RJ',
+    'LNY OFF LEBLON': 'RJ',
+    'LNY RIO SUL': 'RJ',
+    'LNY VILLAGE MALL': 'RJ',
+    'LNY BH': 'MG',
+    'LNY SAVASSI': 'MG',
+    'LNY CAMPINAS': 'SP',
+    'LNY HIGIENOPOLIS': 'SP',
+    'LNY JARDINS': 'SP',
+    'LNY OFF CATARINA': 'SP',
+    'LNY CURITIBA': 'PR',
+    'LNY PORTO ALEGRE': 'RS',
+    'LNY GOIANIA': 'GO',
+    'LNY BRASILIA': 'DF',
+    'LNY RECIFE': 'PE',
+    'LNY SALVADOR': 'BA',
+    'LNY SALVADOR SHOPPING': 'BA',
+    'LNY VITORIA': 'ES',
+    'LNY TRANCOSO': 'BA',
+    'LNY RIBEIRAO PRETO': 'SP',
+    'LNY ATACADO': 'NA',
+    'CONSERTO': 'NA',
+    'ESTOQUE BAZAR': 'NA',
+    'ESTOQUE DISPONIVEL': 'NA',
+    'LNY MATRIZ': 'NA',
+    'LNY EXPORTAÇÃO': 'NA',
+    'LNY BOTAFOGO': 'NA',
+    'LNY LOJAS RJ': 'NA',
+    'LNY - DEVOLUCAO': 'NA',
+    'LNY 2005': 'NA'
+}
+
+# Allowed destination branches for interstate transfe
+allowed_destination = {'CONSERTO LOJAS', 'DISTRIBUIDORA ECOMMERCE',
+                       'DIST. EXPORTACAO', 'LNY DISTRIBUIDORA'}
+
+# File uploader component (accepts Excel files)
+uploaded_data = st.file_uploader('Input the database', type=['xlsx', 'xls'])
+
+if uploaded_data is not None:
+    # Read uploaded Excel file into a DataFrame
+    df = pd.read_excel(uploaded_data)
+
+    # Function to identify which type of database was uploaded
+    def identify_base(df):
+        
+        columns = set(df.columns.str.lower())
+
+        # Delivery base identification
+        if {'numero reserva', 'nome vendedor'} <= columns:
+              return 'delivery'
+        # Transit base identification
+        elif {'filial origem', 'data saida'} <= columns:
+              return 'transito'
+        
+        # Unknown structure
+        else:
+              return 'desconhecido'
+        
+
+    base_type = identify_base(df)
+
+
+    ###### DELIVERY DATABASE ######
+    if base_type == 'delivery':
+        
+         # Function responsible for cleaning and preparing the delivery database
+        def treat_delivery_database(df):
+
+                #Selecting the columns I want to work with
+                df = df[['Filial', 'Codigo Cliente', 'Emissao', 'Numero Reserva', 'Qtde Total', 'Valor Total', 'Cliente Varejo', 'Nome Vendedor', 'Numero Nf Retorno', 'Numero Nf']]
+
+                #Renaming columns Numero Nf Retorno e Numero Nf
+                df.rename(columns ={'Numero Nf Retorno': 'NF Saida', 'Numero Nf': 'Nf Entrada'}, inplace = True)
+
+                #Setting 'Emissao' column as DATE
+                df['Emissao'] = pd.to_datetime(df['Emissao'], format = '%d-%b-%y')
+
+                #Codition to select only the delivers that are open using the 'Valor Total' column
+                df = df[df['Valor Total']>0].copy()
+
+                #Selecting today's date to calc the 'Dias Fora' column
+                today = dt.datetime.now()
+
+                days_out = today - df['Emissao']
+
+                df['Dias Fora'] = days_out.dt.days
+
+                #mapping Supervisor by it's branch
+                df['Supervisor'] = df['Filial'].map(supervisor_data)
+
+                df['Status1'] = ''
+                df['Status2'] = ''
+
+                return df
+        df_delivery_treated = treat_delivery_database(df)
+
+        #Function that identify delivery total value divergency
+        def identify_delivery_value_divergency(df_delivery_treated):
+                df_delivery_treated.loc[df_delivery_treated['Valor Total']>5000, 'Status1'] = 'Valor Acima de R$ 5000'
+                return df_delivery_treated
+        df_delivery_treated = identify_delivery_value_divergency(df_delivery_treated)
+
+        #Function that identify a entry without the tax invoice entry
+        def identify_delivery_without_invoice(df_delivery_treated):
+            df_delivery_treated.loc[df_delivery_treated['NF Saida'].isnull(), 'Status2'] = 'SAÍDA SEM NF SAÍDA'
+
+            return df_delivery_treated
+        df_delivery_treated = identify_delivery_without_invoice(df_delivery_treated)
+
+
+        # Export treated data to Excel
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            st.dataframe(df_delivery_treated)
+            df_delivery_treated.to_excel(writer, index=False, sheet_name='Data')
+            
+
+        st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx")
+        
+    ###### TRANSIT DATABASE ######
+    elif base_type == 'transito':
+         
+        # Function responsible for cleaning and preparing the transit database
+         def treat_transit_database(df):
+            df = df[['Data Saida', 'Filial Origem', 'Filial', 'Qtde Total', 'Romaneio Produto',
+                 'Numero Nf Transferencia', 'Romaneio Nf Saida' ]]
+            
+            # Convert departure date to datetime
+            df['Data Saida'] = pd.to_datetime(df['Data Saida'], errors='coerce').dt.strftime('%d/%m/%Y')
+
+            today = dt.datetime.now()
+
+            days_outside = today-pd.to_datetime(df['Data Saida'], format='%d/%m/%Y')
+
+            df['Dias Fora'] = days_outside.dt.days
+
+            # Calculate days outside
+        
+            
+
+            # Map supervisor by destination branch
+            df['Supervisora'] = df['Filial'].map(supervisor_data)
+
+            return df
+        
+         df_transit_treated = treat_transit_database(df)
+
+        # Identify improper interstate transfers
+         def identify_transit_div(df_transit_treated):
+            df_transit_treated['Estado Origem'] = df_transit_treated['Filial Origem'].map(state_map)
+            df_transit_treated['Estado Destino'] = df_transit_treated['Filial'].map(state_map)
+            df_transit_treated.loc[
+                (df_transit_treated['Estado Origem'].notna()) &
+                (df_transit_treated['Estado Destino'].notna()) &
+                (df_transit_treated['Estado Origem'] != df_transit_treated['Estado Destino']) &
+                (~df_transit_treated['Filial'].isin(allowed_destination)),
+                'Status'] = 'TRANSFERÊNCIA INDEVIDA'
+            df_transit_treated.loc[(df_transit_treated['Status'].isnull()), 'Status'] = ''
+            return df_transit_treated
+         
+         df_transit_treated = identify_transit_div(df_transit_treated)
+
+         # Export treated data to Excel
+         buffer = BytesIO()
+         with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
+            df_transit_treated = df_transit_treated.drop(columns=['Estado Origem', 'Estado Destino'])
+            st.dataframe(df_transit_treated)
+            df_transit_treated.to_excel(writer, index=False, sheet_name='Data')
+
+         st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx")
+    else:
+         # Case when the uploaded file structure is not recognized
+         st.write('Base desconhecida! Adiciona a base correta, por favor.')
+         
+
+
+
+
