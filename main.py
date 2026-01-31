@@ -145,18 +145,22 @@ if uploaded_data is not None:
                 #Renaming columns Numero Nf Retorno e Numero Nf
                 df.rename(columns ={'Numero Nf Retorno': 'NF Saida', 'Numero Nf': 'Nf Entrada'}, inplace = True)
 
-                #Setting 'Emissao' column as DATE
-                df['Emissao'] = pd.to_datetime(df['Emissao'], format = '%d-%b-%y')
-
-                #Codition to select only the delivers that are open using the 'Valor Total' column
-                df = df[df['Valor Total']>0].copy()
+                df['Emissao'] = pd.to_datetime(df['Emissao'], errors='coerce').dt.strftime('%d/%m/%Y')
 
                 #Selecting today's date to calc the 'Dias Fora' column
                 today = dt.datetime.now()
 
-                days_out = today - df['Emissao']
+                days_outside = today-pd.to_datetime(df['Emissao'], format='%d/%m/%Y')
 
-                df['Dias Fora'] = days_out.dt.days
+                
+                df['Dias Fora'] = days_outside.dt.days
+                
+
+                #Codition to select only the delivers that are open using the 'Valor Total' column
+                df = df[df['Valor Total']>0].copy()
+
+                
+                
 
                 #mapping Supervisor by it's branch
                 df['Supervisor'] = df['Filial'].map(supervisor_data)
@@ -183,7 +187,7 @@ if uploaded_data is not None:
 
         # Export treated data to Excel
         buffer = BytesIO()
-        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
             st.dataframe(df_delivery_treated)
             df_delivery_treated.to_excel(writer, index=False, sheet_name='Data')
             
