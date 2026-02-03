@@ -141,7 +141,8 @@ if uploaded_data is not None:
 
                 #Selecting the columns I want to work with
                 df = df[['Filial', 'Codigo Cliente', 'Emissao', 'Numero Reserva', 'Qtde Total', 'Valor Total', 'Cliente Varejo', 'Nome Vendedor', 'Numero Nf Retorno', 'Numero Nf']]
-
+                df['Numero Reserva'] = df['Numero Reserva'].astype(str).str.zfill(8)          
+                
                 #Renaming columns Numero Nf Retorno e Numero Nf
                 df.rename(columns ={'Numero Nf Retorno': 'NF Saida', 'Numero Nf': 'Nf Entrada'}, inplace = True)
 
