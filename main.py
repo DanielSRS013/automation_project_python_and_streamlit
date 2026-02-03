@@ -22,8 +22,8 @@ html, body, [class*="css"]  {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🔍 AuditFlow – Transit & Delivery")
-st.caption("Automated audit for delivery and transit operations")
+st.title("🔍 AuditFlow")
+st.caption("Automated audit for delivery, transit operations, consumption exit, tissue variation")
 
 
 
@@ -112,7 +112,6 @@ uploaded_data = st.file_uploader('Input the database', type=['xlsx', 'xls'])
 if uploaded_data is not None:
     # Read uploaded Excel file into a DataFrame
     df = pd.read_excel(uploaded_data)
-
     # Function to identify which type of database was uploaded
     def identify_base(df):
         
@@ -124,12 +123,13 @@ if uploaded_data is not None:
         # Transit base identification
         elif {'filial origem', 'data saida'} <= columns:
               return 'transito'
-        
+        elif {'cm operacao', 'cm desc operacao'} <= columns:
+             return 'saida_consumo'
+        elif {'material', 'desc material'} <= columns:
+             return 'variacao_tecido'
         # Unknown structure
         else:
               return 'desconhecido'
-        
-
     base_type = identify_base(df)
 
 
@@ -192,8 +192,7 @@ if uploaded_data is not None:
             df_delivery_treated.to_excel(writer, index=False, sheet_name='Data')
             
 
-        st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx")
-        
+        st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx") 
     ###### TRANSIT DATABASE ######
     elif base_type == 'transito':
          
@@ -210,10 +209,6 @@ if uploaded_data is not None:
             days_outside = today-pd.to_datetime(df['Data Saida'], format='%d/%m/%Y')
 
             df['Dias Fora'] = days_outside.dt.days
-
-            # Calculate days outside
-        
-            
 
             # Map supervisor by destination branch
             df['Supervisora'] = df['Filial'].map(supervisor_data)
@@ -245,9 +240,44 @@ if uploaded_data is not None:
             df_transit_treated.to_excel(writer, index=False, sheet_name='Data')
 
          st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx")
+    ###### TISSUE VARIATION DATABASE ######
+    elif base_type == 'variacao_tecido':
+         
+         def treat_tissue_variation(df):
+            df = df[['Material', 'Desc Material', 'Cor Material', 'Desc Cor Material', 'Qtde Estoque', 'Fabricante', 'Ultimo Custo', 'Ultima Entrada', 'Valor Estoque', 'Classif Fiscal']]
+            df['Ultima Entrada']= pd.to_datetime(df['Ultima Entrada'], errors='coerce').dt.strftime('%d/%m/%Y')
+            df.insert(0, 'Status', None)
+
+            return df
+         df_tissue_variation_treated = treat_tissue_variation(df)
+
+         buffer = BytesIO()
+         with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
+            st.dataframe(df_tissue_variation_treated)
+            df_tissue_variation_treated.to_excel(writer, index=False, sheet_name='Data')
+
+         st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx")
+    ###### CONSUMPTION EXIT DATABASE ######
+    elif base_type == 'saida_consumo':
+         
+         def treat_consume_exit(df):
+            df = df[['Req Material', 'Emissao', 'Responsavel', 'Destino', 'Requisitante', 'Rateio Centro Custo', 'Desc Rateio Centro Custo', 'Conta Contabil', 'Desc Conta', 'Cm Operacao', 'Cm Desc Operacao']]
+            df['Emissao'] = pd.to_datetime(df['Emissao'], errors='coerce').dt.strftime('%d/%m/%Y')
+            df.insert(0, 'Status', None)
+
+            return df
+        
+         df_consumption_exit_treated = treat_consume_exit(df)
+
+         buffer = BytesIO()
+         with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
+            st.dataframe(df_consumption_exit_treated)
+            df_consumption_exit_treated.to_excel(writer, index=False, sheet_name='Data')
+
+         st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx")
     else:
          # Case when the uploaded file structure is not recognized
-         st.write('Base desconhecida! Adiciona a base correta, por favor.')
+         st.write('Base desconhecida! Adicione a base correta, por favor.')
          
 
 
