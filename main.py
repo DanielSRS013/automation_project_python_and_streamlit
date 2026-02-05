@@ -3,6 +3,8 @@ import pandas as pd
 from pathlib import Path
 import datetime as dt
 from io import BytesIO
+#import win32com.client as win32
+#outlook = win32.Dispatch('Outlook.Application')
 
 
 
@@ -58,9 +60,19 @@ supervisor_data = {
                     'LNY TRANCOSO': 'Julyana',
                     'LNY VILLAGE MALL': 'Julyana',
                     'LNY VITORIA': 'CLÁUDIA',
+                    'LNY RIBEIRAO PRETO': 'CLÁUDIA',
                     'LNY LOJA INTERNA': 'HERTA',
                     'LNY CONSERTO LOJA': 'ADRIANO/ANDRESSA',
-                    'CONSERTO LOJAS': 'ADRIANO/ANDRESSA'}
+                    'CONSERTO LOJAS': 'ADRIANO/ANDRESSA',
+                    'LNY EXPORTAÇÃO': 'ANDRÉ FERNANDES',
+                    'LNY DISTRIBUIDORA': 'ANDRÉ FERNANDES',
+                    'DISTRIBUIDORA ECOMMERCE': 'ANDRÉ FERNANDES',
+                    'DIST. EXPORTACAO': 'ANDRÉ FERNANDES',
+                    'DISTRIBUIDORA ATACADO': 'ANDRÉ FERNANDES',
+                    'MARKETING': 'ANDRÉ FERNANDES',
+                    'MOSTRUARIO ATACADO': 'ANDRÉ FERNANDES',
+                    'PRONTA ENTREGA': 'ANDRÉ FERNANDES'
+                    }
 # Dictionary that maps each branch to its state
 state_map = {
     'LNY BARRA': 'RJ',
@@ -111,7 +123,7 @@ uploaded_data = st.file_uploader('Input the database', type=['xlsx', 'xls'])
 
 if uploaded_data is not None:
     # Read uploaded Excel file into a DataFrame
-    df = pd.read_excel(uploaded_data)
+    df = pd.read_excel(uploaded_data, dtype = {'Numero Reserva': str, 'Numero Nf Retorno': str, 'Numero Nf':str, 'Numero Nf Transferencia':str})
     # Function to identify which type of database was uploaded
     def identify_base(df):
         
@@ -132,7 +144,7 @@ if uploaded_data is not None:
               return 'desconhecido'
     base_type = identify_base(df)
 
-
+    
     ###### DELIVERY DATABASE ######
     if base_type == 'delivery':
         
@@ -141,11 +153,9 @@ if uploaded_data is not None:
 
                 #Selecting the columns I want to work with
                 df = df[['Filial', 'Codigo Cliente', 'Emissao', 'Numero Reserva', 'Qtde Total', 'Valor Total', 'Cliente Varejo', 'Nome Vendedor', 'Numero Nf Retorno', 'Numero Nf']]
-                df['Numero Reserva'] = df['Numero Reserva'].astype(str).str.zfill(8)          
                 
                 #Renaming columns Numero Nf Retorno e Numero Nf
                 df.rename(columns ={'Numero Nf Retorno': 'NF Saida', 'Numero Nf': 'Nf Entrada'}, inplace = True)
-
                 df['Emissao'] = pd.to_datetime(df['Emissao'], errors='coerce').dt.strftime('%d/%m/%Y')
 
                 #Selecting today's date to calc the 'Dias Fora' column
@@ -159,9 +169,6 @@ if uploaded_data is not None:
 
                 #Codition to select only the delivers that are open using the 'Valor Total' column
                 df = df[df['Valor Total']>0].copy()
-
-                
-                
 
                 #mapping Supervisor by it's branch
                 df['Supervisor'] = df['Filial'].map(supervisor_data)
@@ -185,15 +192,50 @@ if uploaded_data is not None:
             return df_delivery_treated
         df_delivery_treated = identify_delivery_without_invoice(df_delivery_treated)
 
+        #Function that user will choose filter by filial or not
+        def choose_filial(df_delivery_treated):
 
-        # Export treated data to Excel
-        buffer = BytesIO()
-        with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
-            st.dataframe(df_delivery_treated)
-            df_delivery_treated.to_excel(writer, index=False, sheet_name='Data')
-            
+          filiais = df_delivery_treated['Filial'].unique()
 
-        st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx") 
+          filial_selected = st.selectbox(
+               'Gostaria de Filtrar uma Filial?',
+               filiais,
+               index = None,
+               placeholder = 'Selecione uma filial...',
+          )
+
+
+
+          if filial_selected is not None:
+               
+               #email = outlook.CreateItem(0)
+               df_delivery_treated = df_delivery_treated[df_delivery_treated['Filial'] == filial_selected]
+
+               #def set_email_sender(df_delivery_treated):
+                    #email.To = 'danielsrs.mkd@gmail.com'
+                    #email.Subject = 'Delivery'
+                    #email.HTMLBody = f'{df_delivery_treated}'
+
+               st.write('Você selecionou: ', filial_selected)
+
+              
+               st.dataframe(df_delivery_treated)
+               buffer = BytesIO()
+               with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
+                    df_delivery_treated.to_excel(writer, index=False, sheet_name='Data')
+               st.download_button(label='Download', data=buffer.getvalue(), file_name=f"delivery_{filial_selected}.xlsx")
+               
+               #st.button('Enviar Email para Loja', on_click = set_email_sender, args=[''])
+
+          else:
+               st.dataframe(df_delivery_treated)
+               # Export treated data to Excel
+               buffer = BytesIO()
+               with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
+                    df_delivery_treated.to_excel(writer, index=False, sheet_name='Data')
+               st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx") 
+        choose_filial(df_delivery_treated)
+    
     ###### TRANSIT DATABASE ######
     elif base_type == 'transito':
          
