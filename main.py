@@ -144,7 +144,10 @@ if uploaded_data is not None:
               return 'desconhecido'
     base_type = identify_base(df)
 
-    
+    def identify_days_out(val):    
+        if val > 5:
+            return 'background-color: red'
+
     ###### DELIVERY DATABASE ######
     if base_type == 'delivery':
         
@@ -234,10 +237,7 @@ if uploaded_data is not None:
                
                claudia_supervisor = df_delivery_treated[(df_delivery_treated['Supervisor']=='CLÁUDIA') & (df_delivery_treated['Dias Fora']>5)]
                julyana_supervisor = df_delivery_treated[(df_delivery_treated['Supervisor']=='Julyana') & (df_delivery_treated['Dias Fora']>5)]
-            
-               def identify_days_out(val):    
-                    if val > 5:
-                         return 'background-color: red'
+        
 
                df_delivery_treated_styled = df_delivery_treated.style.applymap(identify_days_out, subset=['Dias Fora'])
 
@@ -304,9 +304,10 @@ if uploaded_data is not None:
          with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
             df_transit_treated = df_transit_treated.drop(columns=['Estado Origem', 'Estado Destino'])
             st.dataframe(df_transit_treated)
-            df_transit_treated.to_excel(writer, index=False, sheet_name='Data')
+            df_transit_treated_styled = df_transit_treated.style.applymap(identify_days_out, subset=['Dias Fora'])
+            df_transit_treated_styled.to_excel(writer, index=False, sheet_name='Trânsito')
 
-         st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx")
+         st.download_button(label='Download', data=buffer.getvalue(), file_name="transito.xlsx")
     ###### TISSUE VARIATION DATABASE ######
     elif base_type == 'variacao_tecido':
          
