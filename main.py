@@ -244,18 +244,20 @@ if uploaded_data is not None:
                st.dataframe(df_delivery_treated)
                # Export treated data to Excel
                buffer = BytesIO()
+               buffer_claudia = BytesIO()
+               buffer_julyana = BytesIO()
                
                with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
                     df_delivery_treated_styled.to_excel(writer, index=False, sheet_name='Delivery')
                st.download_button(label='Download', data=buffer.getvalue(), file_name="data.xlsx")
 
-               with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
+               with pd.ExcelWriter(buffer_claudia, engine='openpyxl', datetime_format='DD/MM/YYYY') as writer:
                     claudia_supervisor.to_excel(writer, index=False, sheet_name='Delivery')
-               st.download_button(label='Download Cláudia',data=buffer.getvalue(), file_name='Claudia.xlsx')
+               st.download_button(label='Download Cláudia',data=buffer_claudia.getvalue(), file_name='Claudia.xlsx')
 
-               with pd.ExcelWriter(buffer, engine='openpyxl', datetime_format = 'DD/MM/YYYY') as writer:
+               with pd.ExcelWriter(buffer_julyana, engine='openpyxl', datetime_format = 'DD/MM/YYYY') as writer:
                     julyana_supervisor.to_excel(writer, index=False, sheet_name='Delivery')
-               st.download_button(label='Download Julyana', data=buffer.getvalue(), file_name='Julyana.xlsx')
+               st.download_button(label='Download Julyana', data=buffer_julyana.getvalue(), file_name='Julyana.xlsx')
         choose_filial(df_delivery_treated)   
     
     ###### TRANSIT DATABASE ######
